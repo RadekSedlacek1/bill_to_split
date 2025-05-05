@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% comment %} ledger detail html for aplication main in project Bill_to_split {% endcomment %}
+
+{% load static %}
+
+{% block css_files %}
+    <link rel="stylesheet" href="{% static 'main/styles/Ledger_detail.css' %}">
+{% endblock css_files %}
+
+{% block title %}Ledger detail
+{% endblock title %}
+
+{% block page_title %} Details of the ledger {{ ledger.name }}
+{% endblock page_title %}
+
+{% block content %}
+
+<form method='post'>
+    {% csrf_token %}
+        <button type='submit' class='button-small contrast' name='new-payment' value='{{ ledger.id }}'>
+            New payment
+        </button>
+</form>
+
+
+
+<h3>Users balances:</h3>
+
+<div class='ledger-overview'> 
+    <div class='balances-table'>
+        <table>
+            <thead>
+                <tr>
+                    <th class='column-1'>User</th>
+                    <th class='column-2'>Total balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for balance in user_balances %}
+                    <tr>
+                        <td>{{ balance.name }}</td>
+                        <td>{{ balance.balance }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="2">No payments</td>
+                    </tr>
+                {% endfor %}
+
+                {% if people_available_to_add %}
+                    <tr>
+                        <td>
+                            <form method="post">
+                                {% csrf_token %}
+                                <label for="person_to_add">Add a person to this ledger:</label>
+                                <select name="person_to_add" id="person_to_add" required>
+                                    <option value="" disabled selected>----------</option>
+                                    {% for person in people_available_to_add %}
+                                        <option value="{{ person.id }}">{{ person.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" name="request-ledger-connection">Request to add</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <p>All your contacts are already in the ledger</p>
+                {% endif %}
+
+            </tbody>
+        </table>
+    </div>
+    <div class='graph'>
+        <p>Placeholder for a bar graph showing the user's balances</p>
+    </div>
+</div>
+
+<h3>Registred payments:</h3>
+
+<div class='card-container'>
+
+    {% for payment in payments %}
+        {% if payment.cost != 0%}
+            <div class='card'>
+                <div class='card-header'>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th colspan="2" class='card-name'>
+                                    <h3>{{ payment.name }}</h3>
+                                </th>
+                                <th class='card-buttons'>
+                                    <form method='post'>
+                                        {% csrf_token %}
+                                        <button type='submit' class='button-small contrast' name='payment-edit' value='{{ payment.id }}'>
+                                            Edit payment
+                                        </button>
+                                    </form>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class='column-1'>
+                                    Payment cost:
+                                </td>
+                                <td class='column-2'>
+                                    {{payment.cost}}
+                                </td>
+                                <td>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Your balance change:
+                                </td>
+                                <td>
+                                    {{payment.user_balance}}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class='divider'></div>
+
+                <div class='card-body'>
+                    <div class='body-table'>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class='column-1'>User</th>
+                                    <th class='column-2'>Balance change</th>
+                                    <th class='column-2'>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for balance in balances %}
+                                    {% if balance.payment.id == payment.id %}
+                                        <tr>
+                                            <td>{{ balance.person.name }}:</td>
+                                            <td>{{ balance.balance }}</td>
+                                            <td>{{ balance.status }}</td>
+                                        </tr>
+                                    {% endif %}
+                                {% empty %}
+                                    <p>No balances in this payment.</p>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class='divider'></div>
+
+                <div class='card-footer'>
+                    <div class='left-group'>
+                        <table class='footer-table'>
+                            <tr>
+                                <td class='column-1'>Payment registred:</td>
+                                <td class='column-2'>{{payment.entry_time|date:"F j Y"}}, {{payment.entry_time|time:"H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <td>Payment time:</td>
+                                <td>{{payment.payment_time|date:"F j Y"}}, {{payment.payment_time|time:"H:i" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class='buttons-right'>
+                        {% if user == payment.user%}
+                            <form method='post'>
+                                {% csrf_token %}
+                                <button type='submit' class='button-small custom-warning' name='payment-delete' value='{{ payment.id }}'>
+                                    Delete this payment
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                
+            </div>
+        {% endif %}
+    {% endfor %}
+
+</div>
+
+{% endblock content %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% comment %} welcome page for aplication main in project Bill_to_split {% endcomment %}
+
+{% load static %}
+
+{% block css_files %}    
+    <link rel="stylesheet" href="{% static 'main/styles/index.css' %}">
+{% endblock css_files %}
+
+{% block title %}Welcome page
+{% endblock title %}
+
+{% block page_title %} This is a welcome page
+{% endblock page_title %}
+
+{% block content %}
+
+    <ul>
+        <li>App statistics</li>
+        <li>Number of users</li>
+        <li>Number of ledgers and payments</li>
+        <li>Total spendings evaluated on this app</li>
+    </ul>
+
+    <h3>for debug only:</h3>
+    {% for person in persons %}
+        <ul>
+
+        {{ person.name }} - {{ person.user.email }}
+
+        </ul>   
+        {% empty %}
+            <li>There are no users yet</li>
+        {% endfor %}
+
+{% endblock content %}

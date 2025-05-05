@@ -1,0 +1,116 @@
+/* base css for project Bill_to_split */
+
+* {
+    margin: 0;
+    padding: 0;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.top_navbar {
+    max-width: 100vh;
+}
+
+body {
+    max-width: 100vh;
+}
+
+.h1_title {
+    max-width: 100vh;
+}
+
+.nav_left {
+    padding-left: 30px;
+}
+
+.nav_right {
+    padding-right: 30px;
+}
+
+.h1_title {
+    padding-left: 45px;
+    margin-top: 40px;
+}
+
+.button-small {
+    padding: 10px 15px !important;
+    margin: 0 !important;
+    width: auto !important;
+}
+
+.content {
+    padding-left: 30px;
+    padding-right: 30px;
+    max-width: 100vh;
+}
+
+.custom-warning {
+    background-color: #c01000;
+    color: #f0f0f0;
+    border: none;
+}
+
+.dropdown-content {
+}
+
+.dropdown-content li {
+    padding: 0px 10px 0px 10px !important;
+    margin: 5px !important;
+    width: 40px;
+    height: 40px;
+}
+
+#color-options {
+    display: none;
+    position: absolute !important;
+    gap: 0px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+#color-options.show {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    width: 360px;
+    height: 270px;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.color-pick-color {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.color-pick-button {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 5px;
+    border: none;
+    display: flex;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+
+
+/* 
+pico colors:
+
+--pico-primary
+--pico-secondary
+--pico-tertiary
+--pico-success
+--pico-warning
+--pico-error
+--pico-background
+--pico-contrast
+--pico-muted
+--pico-border
+--pico-mark
+*/

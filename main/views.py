@@ -1,90 +1,117 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db import transaction
 from django.contrib import messages
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required, permission_required
-from .models import Ledger, Payment, PaymentBalance, Person, UserPlaceholder, ContactConnection, Notification
-from .forms import UserRegisterForm, LedgerForm, PaymentForm, PaymentBalanceForm, AddContactForm, NotificationResponse
-from django.forms import inlineformset_factory
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q, Sum
+from django.shortcuts import render, redirect, get_object_or_404
 from collections import defaultdict
-import pprint
+from .forms import UserRegisterForm, LedgerForm, PaymentForm, AddContactForm, NotificationResponse
+from .models import Ledger, Payment, PaymentBalance, Person, UserPlaceholder, ContactConnection, Notification
 
 ##############################        main views        ##############################
 
 def index(request):
+    # For debug only!
     persons = Person.objects.all().distinct()
     context = {'persons': persons}
+    # For debug only!
     return render(request, 'main/_index.html', context)
 
-@login_required(login_url='/login')
+@login_required(login_url='/login')                      # if not loged in, redirect to: /login
 def notifications(request):
     person_self = get_object_or_404(Person, user=request.user)
     notifications_all = Notification.objects.filter(
-    Q(recipient=person_self) | Q(sender=person_self)
+        Q(recipient=person_self) | Q(sender=person_self)
         ).order_by("-created_at")                       #All notofications with person_self.name in it
     info_pending = notifications_all.filter(recipient=person_self, type="info", status="pending").order_by("-created_at")
     account_connection_pending = notifications_all.filter(recipient=person_self, type="account_connection", status="pending").order_by("-created_at")
     ledger_connection_pending = notifications_all.filter(recipient=person_self, type="ledger_connection", status="pending").order_by("-created_at")
     balance_approve_pending = notifications_all.filter(recipient=person_self, type="balance_approve", status="pending").order_by("-created_at")
+
+    if request.method == "GET":
     
-    if request.method == "POST":
+        info_with_forms = []
+        for notification in info_pending:
+            info_with_forms.append((notification,NotificationResponse() ))
+        
+        account_connection_with_forms = []
+        for notification in account_connection_pending:
+            account_connection_with_forms.append((notification,NotificationResponse() ))
+            
+        ledger_connection_with_forms = []
+        for notification in ledger_connection_pending:
+            ledger_connection_with_forms.append((notification,NotificationResponse() ))
+            
+        balance_approve_with_forms = []
+        for notification in balance_approve_pending:
+            balance_approve_with_forms.append((notification,NotificationResponse() ))
+        
+        context = {
+            "notifications_all" : notifications_all,
+            "info_with_forms": info_with_forms,
+            "account_connection_with_forms": account_connection_with_forms,
+            "ledger_connection_with_forms": ledger_connection_with_forms,
+            "balance_approve_with_forms": balance_approve_with_forms,
+        }
+
+        return render(request, "main/notifications.html", context)
+
+    elif request.method == "POST":
         notification_id = request.POST.get("notification_id")
-        action = request.POST.get("action")  # "accept" or "reject"
+        action = request.POST.get("action")     # action is "accept" or "reject"
         response_message = request.POST.get("response_message")
         
         if notification_id:
 
             notification = get_object_or_404(Notification, id=notification_id, recipient=person_self)
 
-        # ("info", "Info"),
-        # ("account_connection", "Account Connection"),
-        # ("ledger_connection", "Ledger Connection"),
-        # ("balance_approve", "Balance Approve"),
-
             if notification.type == "info" and notification.status == "pending":
-                # only action == "accept": possible
-                # Update the notification status
-                notification.status = "accepted"
-                notification.save()
+                # for info only action == "accept": possible
+                # causes an update of notification status
+                with transaction.atomic():
+                    notification.status = "accepted"
+                    notification.save()
 
             if notification.type == "account_connection" and notification.status == "pending":
                 sender = notification.sender
 
                 if action == "accept":
-                    # Create contact connection
-                    ContactConnection.objects.create(
-                        person_a=person_self,
-                        person_b=sender,
-                        explicit=True
-                    )
-                    # Update the notification status
-                    notification.status = "accepted"
-                    notification.save()
+                    with transaction.atomic():
+                        # Create contact connection
+                        ContactConnection.objects.create(
+                            person_a=person_self,
+                            person_b=sender,
+                            explicit=True
+                        )
+                        # Update the notification status
+                        notification.status = "accepted"
+                        notification.save()
 
-                    # Create new info notification for the sender
-                    Notification.objects.create(
-                        sender=person_self,
-                        recipient=sender,
-                        type="info",
-                        status="pending",
-                        message=response_message or f"The request for connection has been accepted by {person_self.name}",
-                    )
-                    messages.success(request, f"The request has been accepted and connection with {sender.name} created")
+                        # Create new info notification for the sender
+                        Notification.objects.create(
+                            sender=person_self,
+                            recipient=sender,
+                            type="info",
+                            status="pending",
+                            message=response_message or f"The request for connection has been accepted by {person_self.name}",
+                        )
+                        messages.success(request, f"The request has been accepted and connection with {sender.name} created")
 
                 elif action == "reject":
-                    notification.status = "rejected"
-                    notification.save()
+                    with transaction.atomic():
+                        notification.status = "rejected"
+                        notification.save()
 
-                    Notification.objects.create(
-                        sender=person_self,
-                        recipient=sender,
-                        type="info",
-                        status="pending",
-                        message=response_message or f"The request for connection has been declined by {person_self.name}",
-                    )
-                    messages.info(request, f"The request from {sender.name} has been declined")
+                        # Create new info notification for the sender
+                        Notification.objects.create(
+                            sender=person_self,
+                            recipient=sender,
+                            type="info",
+                            status="pending",
+                            message=response_message or f"The request for connection has been declined by {person_self.name}",
+                        )
+                        messages.info(request, f"The request from {sender.name} has been declined")
 
             if notification.type == "ledger_connection" and notification.status == "pending":
                 person_self = notification.recipient
@@ -124,31 +151,32 @@ def notifications(request):
                 
                 elif action == "reject":
                     # Change notification status
-                    notification.status = "rejected"
-                    notification.save()
-                    
-                    Notification.objects.create(
-                        sender=person_self,
-                        recipient=sender,
-                        type="info",
-                        status="rejected",
-                        message=response_message or f"{person_self.name} declined your request to join '{ledger.name}'"
-                    )
-                    messages.info(request, f"The request from {sender.name} has been rejected")
+                    with transaction.atomic():
+                        notification.status = "rejected"
+                        notification.save()
+                        
+                        # Send a info notification back to sender
+                        Notification.objects.create(
+                            sender=person_self,
+                            recipient=sender,
+                            type="info",
+                            status="rejected",
+                            message=response_message or f"{person_self.name} declined your request to join '{ledger.name}'"
+                        )
+                        messages.info(request, f"The request from {sender.name} has been rejected")
                                                 
-            
             if notification.type == "balance_approve" and notification.status == "pending":
                 payment = notification.balance.payment
                 person_self = notification.recipient
                 sender = notification.sender
+
                 if action == "accept":
-                    
                     with transaction.atomic():
                         # Notification status change
                         notification.status = "accepted"
                         notification.save()
                         
-                        # Payment status change?
+                        # Payment status change only if all balances accepted (balance notification "pending" does not exist)
                         non_accepted_notifications = Notification.objects.filter(
                             balance__payment = payment
                             ).exclude(status="accepted")
@@ -184,6 +212,7 @@ def notifications(request):
                         notification.status = "rejected"
                         notification.save()
 
+                        # Info message back to payment creator
                         Notification.objects.create(
                             sender = person_self,
                             recipient = sender,
@@ -195,48 +224,26 @@ def notifications(request):
 
         return redirect("notifications")
 
-    info_with_forms = []
-    for notification in info_pending:
-        info_with_forms.append((notification,NotificationResponse() ))
-    
-    account_connection_with_forms = []
-    for notification in account_connection_pending:
-        account_connection_with_forms.append((notification,NotificationResponse() ))
-        
-    ledger_connection_with_forms = []
-    for notification in ledger_connection_pending:
-        ledger_connection_with_forms.append((notification,NotificationResponse() ))
-        
-    balance_approve_with_forms = []
-    for notification in balance_approve_pending:
-        balance_approve_with_forms.append((notification,NotificationResponse() ))
-    
-    context = {
-        "notifications_all" : notifications_all,
-        "info_with_forms": info_with_forms,
-        "account_connection_with_forms": account_connection_with_forms,
-        "ledger_connection_with_forms": ledger_connection_with_forms,
-        "balance_approve_with_forms": balance_approve_with_forms,
-    }
-
-    return render(request, "main/notifications.html", context)
-
 ##############################  Account management views  ##############################
 
 def sign_up(request):
-    if request.method =='POST':
-        form = UserRegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)            # Create person entity as well
-            Person.objects.create(user=user)
-            return redirect('/overview')
-    else:
+    if request.method =='GET':
         form = UserRegisterForm()
-    return render(request, 'registration/sign_up.html', {'form': form})
+        context = {
+            'form': form
+        }
+        return render(request, 'registration/sign_up.html', context)
 
+    if request.method =='POST':
+        with transaction.atomic():
+            form = UserRegisterForm(request.POST)
+            if form.is_valid():
+                user = form.save()
+                Person.objects.create(user=user)    # Create person entity as well
+                login(request, user)
+        return redirect('/overview')
 
-@login_required(login_url='/login')         # if not loged in, redirect to: /login
+@login_required(login_url='/login')
 def overview(request):
     person_self = get_object_or_404(Person, user=request.user)
     ledgers = Ledger.objects.filter(
@@ -244,13 +251,26 @@ def overview(request):
     ).distinct()
     form = AddContactForm()
 
-    if request.method == "POST":
+    connections = ContactConnection.objects.filter(
+        Q(person_a=person_self) | Q(person_b=person_self)
+    )
+    context = {
+        'form': form,
+        'connections': connections,
+        'ledgers':ledgers
+    }
+    
+    if request.method == 'GET':
+        return render(request, 'main/overview.html', context)
+
+    elif request.method == "POST":
         form = AddContactForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
             message_text = form.cleaned_data['message']
-            
+
             try:
+
                 other_user = User.objects.get(email=email)
                 other_person = Person.objects.get(user=other_user)
 
@@ -271,48 +291,75 @@ def overview(request):
                     ).exists()
 
                     if not already_sent:
-                        Notification.objects.create(
-                            sender = person_self,
-                            recipient = other_person,
-                            type = "account_connection",
-                            status = "pending",
-                            message=message_text,
-                    )
+                        with transaction.atomic():
+                            Notification.objects.create(
+                                sender = person_self,
+                                recipient = other_person,
+                                type = "account_connection",
+                                status = "pending",
+                                message=message_text,
+                        )
 
                     messages.success(request, f"Request fo contact with user {email} has been sent.")
                     return redirect('overview')
+
                 else:
                     messages.info(request, "You are already in contact with this user.")
+
             except User.DoesNotExist:
                 messages.error(request, f"User with e-mail: {email} does not exist.")
+                
+            context['form'] = form
+            
+        return render(request, 'main/overview.html', context)
 
-    connections = ContactConnection.objects.filter(
-        Q(person_a=person_self) | Q(person_b=person_self)
-    )
-
-    context = {
-        'form': form,
-        'connections': connections,
-        'ledgers':ledgers
-    }
-
-    return render(request, 'main/overview.html', context)
-
-
-
-##############################    Ledger related views    
-##############################
+##############################    Ledger related views    ##############################
 
 @login_required(login_url='/login')
 def list_of_ledgers(request):
-    if request.method == 'POST':                                        # when from template returns POST
+    
+    person_self = Person.objects.get(user=request.user)
+    ledgers = Ledger.objects.filter(
+        Q(payment__paymentbalance__person=person_self)
+    ).distinct()
+    context = {
+        'ledgers':ledgers
+    }
+    
+    if request.method == 'GET':
+
+
+        for ledger in ledgers:
+            balances = PaymentBalance.objects.filter(
+                payment__ledger=ledger
+            ).select_related('person')
+
+            balances_by_person = defaultdict(lambda: 0)
+
+            # Need to do it manualy in python, because in database is a field, that is calculated when needed (@property), so not possible to ask the database its value, when it does not exist yet
+
+            for item in balances:
+                balances_by_person[item.person] += item.balance
+
+            ledger.user_balance = 0
+            ledger.balances = {}
+            for person, total in balances_by_person.items():
+                ledger.balances[person.name] = total
+                if person == person_self:
+                    ledger.user_balance = total
+                else:
+                    ledger.balances[person.name] = total
+
+        return render(request, 'main/list_of_ledgers.html', context)
+    
+    elif request.method == 'POST':                                      # when from template returns POST
         if 'ledger-delete' in request.POST:
             ledger_id = request.POST.get('ledger-delete')               # take the id form the template
             if ledger_id:                                               # do the rest only if you have id to delete
                 ledger = Ledger.objects.filter(id=ledger_id).first()    # take this ledger from the db
                 print(f"{ledger} deleted")                              # must be before delete, after deletion there is no ID anymore
                 ledger.delete()
-                
+
         if 'ledger-detail' in request.POST:
             ledger_id = request.POST.get('ledger-detail')               # take the id form the template
             if ledger_id:                                               # do the rest only if you have id to go to
@@ -322,35 +369,11 @@ def list_of_ledgers(request):
             ledger_id = request.POST.get('new-payment')                 # take the id form the template
             if ledger_id:                                               # do the rest only if you have id to go to
                 return redirect('payment_add',ledger_pk=ledger_id)
+    return render(request, 'main/list_of_ledgers.html', context)
 
-    person_self = Person.objects.get(user=request.user)
-    ledgers = Ledger.objects.filter(
-        Q(payment__paymentbalance__person=person_self)
-    ).distinct()
 
-    for ledger in ledgers:
-        balances = PaymentBalance.objects.filter(
-            payment__ledger=ledger
-        ).select_related('person')
+# Doplnit msg pro template, context = context, záznamy dělat transakčně
 
-        from collections import defaultdict
-        balances_by_person = defaultdict(lambda: 0)
-        
-        # Need to do it manualy in python, because in database is a field, that is calculated when needed (@property), so not possible to ask the database its value, when it does not exist yet
-
-        for b in balances:
-            balances_by_person[b.person] += b.balance
-
-        ledger.user_balance = 0
-        ledger.balances = {}
-        for person, total in balances_by_person.items():
-            ledger.balances[person.name] = total  # ← vždy přidat, i sebe
-            if person == person_self:
-                ledger.user_balance = total
-            else:
-                ledger.balances[person.name] = total
-
-    return render(request, 'main/list_of_ledgers.html', {'ledgers':ledgers})
 
 @login_required(login_url='/login')
 def ledger_add(request):
@@ -489,7 +512,6 @@ def ledger_edit(request):
     return render(request, 'main/ledger_edit.html', {})
 
 ##############################    Payment related views    ##############################
-
 
 @login_required(login_url='/login')
 def payment_add(request, ledger_pk):

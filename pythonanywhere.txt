@@ -1,0 +1,12 @@
+
+Příkazy pro python anywhere po spuštění $ bash
+
+cd ~/bill_to_split							            musím být tady
+git pull origin main						            update z GIThubu
+
+cd ..									                zpátky na stromy
+source .virtualenvs/bill_to_split_env/bin/activate  	aktivace virtualního prostředí
+cd bill_to_split 							            zpátky do složky
+python manage.py collectstatic				            aktualizace statických souborů, může trvat, musím být ve virtuální mprostředí
+
+v gui RELOAD a stránka je aktivní+

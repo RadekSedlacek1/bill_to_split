@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.models import User
@@ -13,9 +14,11 @@ from .models import Ledger, Payment, PaymentBalance, Person, UserPlaceholder, Co
 
 def index(request):
     # For debug only!
-    persons = Person.objects.all().distinct()
-    context = {'persons': persons}
-    # For debug only!
+    context = {'persons': None}
+    if settings.DEBUG:
+        persons = Person.objects.all().distinct()
+        context = { 'persons': persons,
+                    'debug' : True}
     return render(request, 'main/_index.html', context)
 
 @login_required(login_url='/login')                      # if not loged in, redirect to: /login
@@ -326,33 +329,7 @@ def list_of_ledgers(request):
         'ledgers':ledgers
     }
     
-    if request.method == 'GET':
-
-
-        for ledger in ledgers:
-            balances = PaymentBalance.objects.filter(
-                payment__ledger=ledger
-            ).select_related('person')
-
-            balances_by_person = defaultdict(lambda: 0)
-
-            # Need to do it manualy in python, because in database is a field, that is calculated when needed (@property), so not possible to ask the database its value, when it does not exist yet
-
-            for item in balances:
-                balances_by_person[item.person] += item.balance
-
-            ledger.user_balance = 0
-            ledger.balances = {}
-            for person, total in balances_by_person.items():
-                ledger.balances[person.name] = total
-                if person == person_self:
-                    ledger.user_balance = total
-                else:
-                    ledger.balances[person.name] = total
-
-        return render(request, 'main/list_of_ledgers.html', context)
-    
-    elif request.method == 'POST':                                      # when from template returns POST
+    if request.method == 'POST':                                      # when from template returns POST
         if 'ledger-delete' in request.POST:
             ledger_id = request.POST.get('ledger-delete')               # take the id form the template
             if ledger_id:                                               # do the rest only if you have id to delete
@@ -369,7 +346,33 @@ def list_of_ledgers(request):
             ledger_id = request.POST.get('new-payment')                 # take the id form the template
             if ledger_id:                                               # do the rest only if you have id to go to
                 return redirect('payment_add',ledger_pk=ledger_id)
+
+    # if request.method == 'GET':
+
+    for ledger in ledgers:
+        balances = PaymentBalance.objects.filter(
+            payment__ledger=ledger
+        ).select_related('person')
+
+        balances_by_person = defaultdict(lambda: 0)
+
+        # Need to do it manualy in python, because in database is a field, that is calculated when needed (@property), so not possible to ask the database its value, when it does not exist yet
+
+        for item in balances:
+            balances_by_person[item.person] += item.balance
+
+        ledger.user_balance = 0
+        ledger.balances = {}
+        for person, total in balances_by_person.items():
+            ledger.balances[person.name] = total
+            if person == person_self:
+                ledger.user_balance = total
+            else:
+                ledger.balances[person.name] = total
+
     return render(request, 'main/list_of_ledgers.html', context)
+    
+
 
 
 # Doplnit msg pro template, context = context, záznamy dělat transakčně

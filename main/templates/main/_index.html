@@ -11,27 +11,38 @@
 {% block title %}Welcome page
 {% endblock title %}
 
-{% block page_title %} This is a welcome page
+{% block page_title %} Welcome to <strong> Bill to split </strong> 
 {% endblock page_title %}
 
 {% block content %}
 
-    <ul>
-        <li>App statistics</li>
-        <li>Number of users</li>
-        <li>Number of ledgers and payments</li>
-        <li>Total spendings evaluated on this app</li>
-    </ul>
+    <br>
+    <p>Managing shared expenses in a group can quickly become complicated — especially when you're traveling with friends, organizing a group event, or living in a shared household. This app is designed to help <strong>you</strong> keep track of who paid for what, how much each person owes, and how to fairly split expenses among group members.</p>
+    <p>Imagine you're on a trip with a group of friends, visiting two different cities. In the first city, one friend pays for a shared hotel room. In the second city, another friend covers the cost of a group dinner at a restaurant. Along the way, someone else might pay for fuel for a rental car, buy museum tickets for everyone, or pick up snacks and drinks for the group. Over the course of the trip, many small and large expenses add up, and it becomes difficult to keep track of what each person paid and how to split it fairly.</p>
+    <p>This is where the <strong> Bill to Split </strong> app comes in. It allows you to record every payment, assign who the payment was for, and automatically calculates the balances between all group members. Whether the expense was shared by the whole group or just a few people, the app handles the math for you. At the end of the trip, it's easy to see who owes what, and to whom — making it simple to settle up.</p>
+    <br>
+    <h3>How does bill to split app work?</h3>
+    <ul> 
+        <li>Create your account</li>
+        <li>Send connection requests to friends via the <strong>My overview</strong> tab</li>
+        <li>Create a <strong>Ledger</strong> to record all group expenses for a specific trip or activity</li>
+        <li>Add contacts from your list to the ledger</li>
+        <li>Create a new payment entry and fill in the details</li>
+        <li>Monitor the expense summary in the <strong>ledger details</strong>  </li>
+        <li>To settle debts, those who owe money pay the participants with a positive balance</li>
+        <li>All debts are considered settled when everyone's balance in the ledger reaches zero</li>
+     </ul>
 
-    <h3>for debug only:</h3>
-    {% for person in persons %}
-        <ul>
-
-        {{ person.name }} - {{ person.user.email }}
-
-        </ul>   
-        {% empty %}
-            <li>There are no users yet</li>
-        {% endfor %}
+    {% comment %}  {% endcomment %}
+    {% if debug == True%}
+        <h3>for debug only:</h3>
+        {% for person in persons %}
+            <ul>
+            {{ person.name }} - {{ person.user.email }}
+            </ul>   
+            {% empty %}
+                <li>There are no users yet</li>
+            {% endfor %}
+    {% endif %}
 
 {% endblock content %}

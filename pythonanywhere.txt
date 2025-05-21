@@ -2,6 +2,7 @@
 Příkazy pro python anywhere po spuštění $ bash
 
 cd ~/bill_to_split							            musím být tady
+git reset --hard                                        Pouze pokud mám problém s githubem
 git pull origin main						            update z GIThubu
 
 cd ..									                zpátky na stromy
